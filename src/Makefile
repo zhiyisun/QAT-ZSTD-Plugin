@@ -53,10 +53,10 @@ ifneq ($(ICP_ROOT), )
 		       -I$(ICP_ROOT)/quickassist/lookaside/access_layer/include \
 			   -I$(ICP_ROOT)/quickassist/utilities/libusdm_drv
 	LDFLAGS  = -Wl,-rpath,$(ICP_ROOT)/build -L$(ICP_ROOT)/build -lqat_s \
-			   -lusdm_drv_s
+			   -lusdm_drv_s -lnuma
 else
 	QATFLAGS = -DINTREE
-	LDFLAGS  = -lqat -lusdm
+	LDFLAGS  = -lqat -lusdm -lnuma
 endif
 
 ifdef ZSTDLIB

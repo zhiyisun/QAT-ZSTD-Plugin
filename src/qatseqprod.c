@@ -37,6 +37,7 @@
  *****************************************************************************
  *      Dependencies
  *****************************************************************************/
+#define _GNU_SOURCE
 #ifndef ZSTD_STATIC_LINKING_ONLY
 #define ZSTD_STATIC_LINKING_ONLY
 #endif
@@ -46,6 +47,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <numa.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -58,6 +60,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <limits.h> /* INT_MAX */
+#include <sched.h>
 #include <string.h> /* memset */
 #include <stdarg.h>
 
@@ -218,7 +221,14 @@ static void *QZSTD_calloc(size_t nb, size_t size, unsigned char reqPhyContMem)
     if (!reqPhyContMem) {
         return calloc(nb, size);
     } else {
-        return qaeMemAllocNUMA(nb * size, 0, 64);
+        int cpu_id = sched_getcpu();
+        int real_numa = numa_node_of_cpu(cpu_id);
+        if (real_numa == -1) {
+            QZSTD_LOG(1, "couldn't find NUMA node of CPU %d\n", cpu_id);
+            return NULL;
+        }
+
+        return qaeMemAllocNUMA(nb * size, real_numa, 64);
     }
 }
 

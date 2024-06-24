@@ -13,6 +13,7 @@ BuildRequires:	automake
 BuildRequires:	gcc
 BuildRequires:	libzstd-devel
 BuildRequires:	qatlib-devel
+BuildRequires:	numactl-devel
 
 # Upstream only supports x86_64
 ExclusiveArch:	x86_64
