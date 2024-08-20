@@ -96,6 +96,8 @@ typedef struct {
 static HistogramStat_t compHistogram;
 static pthread_barrier_t g_threadBarrier1, g_threadBarrier2;
 static size_t g_threadNum = 0;
+static double g_compSpeed = 0, g_decompSpeed = 0;
+pthread_mutex_t g_lock;
 
 static void initHistorgram(HistogramStat_t *historgram)
 {
@@ -380,6 +382,10 @@ compressend:
             threadNum, srcSize, cSize, (double) compSpeed / MB, (double) decompSpeed / MB,
             ratio * 100,
             verifyResult ? "PASS" : "FAIL");
+    pthread_mutex_lock(&g_lock);
+    g_compSpeed += compSpeed;
+    g_decompSpeed += decompSpeed;
+    pthread_mutex_unlock(&g_lock);
 exit:
     ZSTD_freeCCtx(zc);
     ZSTD_freeDCtx(zdc);
@@ -508,6 +514,7 @@ int main(int argc, const char **argv)
     threadArgs.srcBuffer = srcBuffer;
     threadArgs.srcSize = srcSize;
     initHistorgram(&compHistogram);
+    pthread_mutex_init(&g_lock, NULL);
 
     pthread_barrier_init(&g_threadBarrier1, NULL, nbThreads);
     pthread_barrier_init(&g_threadBarrier2, NULL, nbThreads);
@@ -529,6 +536,9 @@ int main(int argc, const char **argv)
                 percentile(&compHistogram, 99) / NANOUSEC,
                 (double)(compHistogram.sum / compHistogram.num / NANOUSEC));
 
+        DISPLAY("ALL Compression Speed: %5.f MB/s, ALL Decompression Speed: %5.f MB/s\n",
+                g_compSpeed / MB, g_decompSpeed / MB);
+
 #ifdef DISPLAY_HISTOGRAM
         DISPLAY("Latency histogram(nanosec): count: %lu\n", compHistogram.num);
         size_t cumulativeSum = 0;
@@ -547,6 +557,7 @@ int main(int argc, const char **argv)
 
     pthread_barrier_destroy(&g_threadBarrier1);
     pthread_barrier_destroy(&g_threadBarrier2);
+    pthread_mutex_destroy(&g_lock);
     QZSTD_stopQatDevice();
     close(inputFile);
     free(srcBuffer);
