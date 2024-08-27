@@ -44,6 +44,7 @@ endif
 
 ifdef ZSTDLIB
 LDFLAGS += $(ZSTDLIB)/libzstd.a
+CFLAGS += -I$(ZSTDLIB)
 else
 ZSTDLIB := $(shell find /usr /lib /local -name 'libzstd.a' 2>/dev/null | head -n 1)
 ZSTDLIB ?= /usr/local/lib/libzstd.a
