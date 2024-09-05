@@ -37,36 +37,39 @@ LIB     = ../src
 LDFLAGS = $(LIB)/libqatseqprod.a -I$(LIB)
 
 ifneq ($(ICP_ROOT), )
-	LDFLAGS += -lqat_s -lusdm_drv_s -Wl,-rpath,$(ICP_ROOT)/build -L$(ICP_ROOT)/build
+	LDFLAGS += -lqat_s -lusdm_drv_s -lnuma -Wl,-rpath,$(ICP_ROOT)/build -L$(ICP_ROOT)/build
 else
-	LDFLAGS += -lqat -lusdm
+	LDFLAGS += -lqat -lusdm -lnuma
 endif
 
 ifdef ZSTDLIB
-LDFLAGS += $(ZSTDLIB)/libzstd.a
 CFLAGS += -I$(ZSTDLIB)
+LDFLAGS += $(ZSTDLIB)/libzstd.a
 else
-ZSTDLIB := $(shell find /usr /lib /local -name 'libzstd.a' 2>/dev/null | head -n 1)
-ZSTDLIB ?= /usr/local/lib/libzstd.a
-ifneq ("$(wildcard $(ZSTDLIB))","")
-    LDFLAGS += $(ZSTDLIB)
-else
-    $(error libzstd.a not found, please install libzstd or specify the path manually)
-endif
+ZSTDLIB := $(shell find /usr /lib /local -name 'libzstd.a' 2>/dev/null | head -n 1| xargs dirname)
+LDFLAGS += $(ZSTDLIB)/libzstd.a
 endif
 
 default: test benchmark
 
 all: test benchmark
 
-test: test.c
-	$(Q)$(MAKE) -C $(LIB)
-	$(CC) $^ $(CFLAGS) $(LDFLAGS) -o $@
+check_zstdlib:
+	@echo checking zstd static libaray '$(ZSTDLIB)/libzstd.a'
+	@if [ ! -e $(ZSTDLIB)/libzstd.a ]; then \
+	  echo  libzstd.a is not found, please install libzstd or specify the path manually; \
+	  exit 1; \
+	fi
 
-benchmark: benchmark.c
+test: test.c check_zstdlib
 	$(Q)$(MAKE) -C $(LIB)
-	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o $@ -lpthread
+	$(CC) $< $(CFLAGS) $(LDFLAGS) -o $@
+
+benchmark: benchmark.c check_zstdlib
+	$(Q)$(MAKE) -C $(LIB)
+	$(CC) $(CFLAGS) $< $(LDFLAGS) -o $@ -lpthread
 
 clean:
 	$(Q)$(MAKE) -C $(LIB) $@
 	$(RM) test benchmark
+.PHONY: clean check_zstdlib
