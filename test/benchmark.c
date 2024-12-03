@@ -49,7 +49,10 @@
 #endif
 #include "zstd.h"
 #include "zstd_errors.h"
+
+#ifdef BUILD_QAT
 #include "qatseqprod.h"
+#endif
 
 #define NANOSEC (1000000000ULL) /* 1 second */
 #define NANOUSEC (1000) /* 1 usec */
@@ -76,7 +79,9 @@ typedef struct {
     size_t srcSize;  /* Input file size */
     unsigned cLevel; /* Compression Level 1 - 12 */
     unsigned nbIterations; /* Number test loops, default is 1 */
+#ifdef BUILD_QAT
     char benchMode; /* 0: software compression, 1: QAT compression*/
+#endif
     char searchForExternalRepcodes; /* 0: auto 1: enable, 2: disable */
     const unsigned char *srcBuffer; /* Input data point */
 } threadArgs_t;
@@ -178,7 +183,9 @@ static int usage(const char *exe)
     DISPLAY("    -c#       Set chunk size (default: 32K)\n");
     DISPLAY("    -E#       Auto/enable/disable searchForExternalRepcodes(0: auto; 1: enable; 2: disable; default: auto)\n");
     DISPLAY("    -L#       Set compression level [1 - 12] (default: 1)\n");
+#ifdef BUILD_QAT
     DISPLAY("    -m#       Benchmark mode, 0: software compression; 1:QAT compression(default: 1) \n");
+#endif
     DISPLAY("    -h/H      Print this help message\n");
     return 0;
 }
@@ -258,13 +265,17 @@ void *benchmark(void *args)
     decompBuffer = (unsigned char *)malloc(srcSize);
     assert(destBuffer != NULL);
 
+#ifdef BUILD_QAT
     if (threadArgs->benchMode == 1) {
         QZSTD_startQatDevice();
         matchState = QZSTD_createSeqProdState();
         ZSTD_registerSequenceProducer(zc, matchState, qatSequenceProducer);
     } else {
+#endif
         ZSTD_registerSequenceProducer(zc, NULL, NULL);
+#ifdef BUILD_QAT
     }
+#endif
 
     if (threadArgs->searchForExternalRepcodes == ZSTD_ENABLED) {
         rc = ZSTD_CCtx_setParameter(zc, ZSTD_c_searchForExternalRepcodes,
@@ -383,9 +394,12 @@ compressend:
 exit:
     ZSTD_freeCCtx(zc);
     ZSTD_freeDCtx(zdc);
+
+#ifdef BUILD_QAT
     if (threadArgs->benchMode == 1 && matchState) {
         QZSTD_freeSeqProdState(matchState);
     }
+#endif
     if (chunkSizes) {
         free(chunkSizes);
     }
@@ -419,7 +433,9 @@ int main(int argc, const char **argv)
     threadArgs.chunkSize = DEFAULT_CHUNK_SIZE;
     threadArgs.nbIterations = 1;
     threadArgs.cLevel = 1;
+#ifdef BUILD_QAT
     threadArgs.benchMode = 1;
+#endif
     threadArgs.searchForExternalRepcodes = ZSTD_AUTO;
 
     for (argNb = 1; argNb < argc; argNb++) {
@@ -451,11 +467,13 @@ int main(int argc, const char **argv)
                     arg++;
                     threadArgs.nbIterations = stringToU32(&arg);
                     break;
+#ifdef BUILD_QAT
                 /* Set benchmark mode */
                 case 'm':
                     arg++;
                     threadArgs.benchMode = stringToU32(&arg);
                     break;
+#endif
                 /* Set searchForExternalRepcodes */
                 case 'E':
                     arg++;
@@ -547,7 +565,9 @@ int main(int argc, const char **argv)
 
     pthread_barrier_destroy(&g_threadBarrier1);
     pthread_barrier_destroy(&g_threadBarrier2);
+#ifdef BUILD_QAT
     QZSTD_stopQatDevice();
+#endif
     close(inputFile);
     free(srcBuffer);
     return 0;

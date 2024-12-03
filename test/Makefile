@@ -32,14 +32,18 @@
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # #######################################################################
-LIB     = ../src
 
-LDFLAGS = $(LIB)/libqatseqprod.a -I$(LIB)
+BUILD_QAT ?= 0
+ifeq ($(BUILD_QAT), 1)
+	LIB     = ../src
 
-ifneq ($(ICP_ROOT), )
-	LDFLAGS += -lqat_s -lusdm_drv_s -Wl,-rpath,$(ICP_ROOT)/build -L$(ICP_ROOT)/build
-else
-	LDFLAGS += -lqat -lusdm
+	LDFLAGS = $(LIB)/libqatseqprod.a -I$(LIB)
+
+	ifneq ($(ICP_ROOT), )
+		LDFLAGS += -lqat_s -lusdm_drv_s -Wl,-rpath,$(ICP_ROOT)/build -L$(ICP_ROOT)/build
+	else
+		LDFLAGS += -lqat -lusdm
+	endif
 endif
 
 ifdef ZSTDLIB
@@ -59,13 +63,19 @@ default: test benchmark
 all: test benchmark
 
 test: test.c
+ifeq ($(BUILD_QAT), 1)
 	$(Q)$(MAKE) -C $(LIB)
+endif
 	$(CC) $^ $(CFLAGS) $(LDFLAGS) -o $@
 
 benchmark: benchmark.c
+ifeq ($(BUILD_QAT), 1)
 	$(Q)$(MAKE) -C $(LIB)
+endif
 	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o $@ -lpthread
 
 clean:
+ifeq ($(BUILD_QAT), 1)
 	$(Q)$(MAKE) -C $(LIB) $@
+endif
 	$(RM) test benchmark
