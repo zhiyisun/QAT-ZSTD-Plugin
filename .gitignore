@@ -1,0 +1,78 @@
+# Build artifacts
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+
+# Static and shared libraries
+lib*.a
+lib*.so*
+
+# Executables
+test/test
+test/benchmark
+
+# Core dumps
+core
+core.*
+vgcore.*
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Temporary files
+*.tmp
+*.temp
+*~
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+
+# Coverage files
+*.gcno
+*.gcda
+*.gcov
+lcov.info
+coverage/
+
+# Profiling files
+gmon.out
+*.prof
+
+# Static analysis outputs
+cppcheck-*.xml
+scan-build-*/
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.sublime-*
+tags
+TAGS
+.clangd/
+
+# OS generated files
+*.pid
+*.seed
+*.pid.lock
+
+# Package files
+*.tar.gz
+*.tgz
+*.zip
+*.deb
+*.rpm
+
+# Test results
+test_results/
+*.junit.xml
