@@ -2,7 +2,7 @@
  *
  *   BSD LICENSE
  *
- *   Copyright(c) 2007-2023 Intel Corporation. All rights reserved.
+ *   Copyright(c) 2007-2025 Intel Corporation. All rights reserved.
  *   All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
@@ -92,7 +92,7 @@
 
 #define MAX_GRAB_RETRY                 (10)
 #define MAX_SEND_REQUEST_RETRY         (5)
-#define MAX_DEVICES                    (256)
+#define MAX_DEVICES                    (512)
 
 #define SECTION_NAME_SIZE              (32)
 
@@ -240,10 +240,8 @@ static void QZSTD_free(void *ptr, unsigned char reqPhyContMem)
 {
     if (!reqPhyContMem) {
         free(ptr);
-        ptr = NULL;
     } else {
         qaeMemFreeNUMA(&ptr);
-        ptr = NULL;
     }
 }
 
@@ -491,17 +489,33 @@ static int QZSTD_setInstance(unsigned int devId,
 const char *QZSTD_getSectionName(void)
 {
     static char sectionName[SECTION_NAME_SIZE];
-    int len;
-    char *preSectionName;
-    preSectionName = getenv("QAT_SECTION_NAME");
+    const char *envName;
+    const char *defaultName = "SHIM";
+    size_t envLen;
 
-    if (!preSectionName || !(len = strlen(preSectionName))) {
-        preSectionName = (char *)"SHIM";
-    } else if (len >= SECTION_NAME_SIZE) {
-        QZSTD_LOG(1, "The length of QAT_SECTION_NAME exceeds the limit\n");
+    /* Use secure_getenv if available, otherwise fallback to getenv */
+#ifdef __GLIBC__
+    /* secure_getenv is available in glibc 2.17+ */
+#if defined(__GLIBC_PREREQ) && __GLIBC_PREREQ(2, 17)
+    envName = secure_getenv("QAT_SECTION_NAME");
+#else
+    envName = getenv("QAT_SECTION_NAME");
+#endif
+#else
+    /* For non-glibc systems, fallback to getenv */
+    envName = getenv("QAT_SECTION_NAME");
+#endif
+
+    /* Use default if env var is not set, empty, or too long */
+    if (!envName || (envLen = strlen(envName)) == 0 ||
+        envLen >= SECTION_NAME_SIZE) {
+        QZSTD_LOG(2, "Section Name invalid. Using default section name '%s'\n",
+                  defaultName);
+        envName = defaultName;
     }
-    strncpy(sectionName, preSectionName, SECTION_NAME_SIZE - 1);
-    sectionName[SECTION_NAME_SIZE - 1] = '\0';
+
+    /* Safe copy with guaranteed null termination */
+    snprintf(sectionName, SECTION_NAME_SIZE, "%s", envName);
     return sectionName;
 }
 
@@ -580,7 +594,6 @@ static int QZSTD_getAndShuffleInstance(void)
                 gProcess.dcInstHandle[i], &newInst->instance.instanceInfo)) {
             QZSTD_LOG(1, "cpaDcInstanceGetInfo2 failed\n");
             free(newInst);
-            newInst = NULL;
             goto exit;
         }
 
@@ -588,7 +601,6 @@ static int QZSTD_getAndShuffleInstance(void)
                 gProcess.dcInstHandle[i], &newInst->instance.instanceCap)) {
             QZSTD_LOG(1, "cpaDcQueryCapabilities failed\n");
             free(newInst);
-            newInst = NULL;
             goto exit;
         }
 
@@ -601,9 +613,8 @@ static int QZSTD_getAndShuffleInstance(void)
 
         devId = newInst->instance.instanceInfo.physInstId.packageId;
         if (QZSTD_OK != QZSTD_setInstance(devId, newInst, qatHw)) {
-            QZSTD_LOG(1, "QZSTD_setInstance on device %d failed\n", devId);
+            QZSTD_LOG(1, "QZSTD_setInstance on device %u failed\n", devId);
             free(newInst);
-            newInst = NULL;
             goto exit;
         }
     }
@@ -621,7 +632,6 @@ static int QZSTD_getAndShuffleInstance(void)
         if (!newInst->instance.instanceCap.checksumXXHash32 ||
             !newInst->instance.instanceCap.statelessLZ4SCompression) {
             free(newInst);
-            newInst = NULL;
             continue;
         }
 
@@ -635,7 +645,6 @@ static int QZSTD_getAndShuffleInstance(void)
                sizeof(QZSTD_Instance_T));
         gProcess.dcInstHandle[instanceMatched] = newInst->dcInstHandle;
         free(newInst);
-        newInst = NULL;
         instanceMatched++;
     }
 
@@ -957,6 +966,7 @@ static void QZSTD_setupSess(QZSTD_Session_T *zstdSess)
 
 int QZSTD_startQatDevice(void)
 {
+    int status;
     pthread_mutex_lock(&gProcess.mutex);
 
     if (QZSTD_FAIL == gProcess.qzstdInitStatus) {
@@ -969,8 +979,9 @@ int QZSTD_startQatDevice(void)
                                    QZSTD_OK : QZSTD_STARTED;
     }
     QZSTD_LOG(2, "InitStatus: %d\n", gProcess.qzstdInitStatus);
+    status = gProcess.qzstdInitStatus;
     pthread_mutex_unlock(&gProcess.mutex);
-    return gProcess.qzstdInitStatus;
+    return status;
 }
 
 static unsigned isLittleEndian(void)
@@ -1049,7 +1060,7 @@ static size_t QZSTD_decLz4s(ZSTD_Sequence *outSeqs, size_t outSeqsCapacity,
             outSeqs[seqsIdx].litLength = literalLen;
             outSeqs[seqsIdx].offset = offset;
             outSeqs[seqsIdx].matchLength = matchlen;
-            QZSTD_LOG(3, "Last sequence, literalLen: %lu, offset: %lu, matchlen: %lu\n",
+            QZSTD_LOG(3, "Last sequence, literalLen: %zu, offset: %zu, matchlen: %zu\n",
                       literalLen, offset, matchlen);
             break;
         }
@@ -1076,7 +1087,7 @@ static size_t QZSTD_decLz4s(ZSTD_Sequence *outSeqs, size_t outSeqsCapacity,
             outSeqs[seqsIdx].offset = offset;
             outSeqs[seqsIdx].litLength = literalLen;
             outSeqs[seqsIdx].matchLength = matchlen;
-            QZSTD_LOG(3, "sequence, literalLen: %lu, offset: %lu, matchlen: %lu\n",
+            QZSTD_LOG(3, "sequence, literalLen: %zu, offset: %zu, matchlen: %zu\n",
                       literalLen, offset, matchlen);
             histLiteralLen = 0;
             ++seqsIdx;
@@ -1133,7 +1144,7 @@ size_t qatSequenceProducer(
     if (windowSize < (srcSize < 32 * KB ? srcSize : 32 * KB) || dictSize > 0 ||
         dict) {
         QZSTD_LOG(2,
-                  "Currently not use windowsSize and not support dictionary, windowsSize: %lu, srcSize: %lu, dictSize: %lu\n",
+                  "Currently not use windowsSize and not support dictionary, windowsSize: %zu, srcSize: %zu, dictSize: %zu\n",
                   windowSize, srcSize, dictSize);
         return ZSTD_SEQUENCE_PRODUCER_ERROR;
     }
@@ -1147,7 +1158,9 @@ size_t qatSequenceProducer(
     }
 
     /* check hardware initialization status */
+    pthread_mutex_lock(&gProcess.mutex);
     if (gProcess.qzstdInitStatus != QZSTD_OK) {
+        pthread_mutex_unlock(&gProcess.mutex);
         zstdSess->failOffloadCnt++;
         if (zstdSess->failOffloadCnt >= NUM_BLOCK_OF_RETRY_INTERVAL) {
             zstdSess->failOffloadCnt = 0;
@@ -1159,6 +1172,8 @@ size_t qatSequenceProducer(
             QZSTD_LOG(1, "The hardware was not successfully started\n");
             return ZSTD_SEQUENCE_PRODUCER_ERROR;
         }
+    } else {
+        pthread_mutex_unlock(&gProcess.mutex);
     }
 
     zstdSess->sessionSetupData.compLevel = (CpaDcCompLvl)compressionLevel;
@@ -1212,7 +1227,7 @@ size_t qatSequenceProducer(
 
     if (CPA_STATUS_SUCCESS != cpaDcLZ4SCompressBound(gProcess.dcInstHandle[i],
             ZSTD_BLOCKSIZE_MAX, &intermediateBufLen)) {
-        QZSTD_LOG(1, "Failed to caculate compress bound\n");
+        QZSTD_LOG(1, "Failed to calculate compress bound\n");
         rc = ZSTD_SEQUENCE_PRODUCER_ERROR;
         goto exit;
     }
@@ -1305,13 +1320,13 @@ size_t qatSequenceProducer(
         gProcess.qzstdInst[i].res.produced > intermediateBufLen ||
         CPA_STATUS_SUCCESS != gProcess.qzstdInst[i].res.status) {
         QZSTD_LOG(1,
-                  "QAT result error, srcSize: %lu, consumed: %d, produced: %d, res.status:%d\n",
+                  "QAT result error, srcSize: %zu, consumed: %d, produced: %d, res.status:%d\n",
                   srcSize, gProcess.qzstdInst[i].res.consumed, gProcess.qzstdInst[i].res.produced,
                   gProcess.qzstdInst[i].res.status);
         rc = ZSTD_SEQUENCE_PRODUCER_ERROR;
         goto error;
     }
-    QZSTD_LOG(2, "srcSize: %lu, consumed: %d, produced: %d\n",
+    QZSTD_LOG(2, "srcSize: %zu, consumed: %d, produced: %d\n",
               srcSize, gProcess.qzstdInst[i].res.consumed,
               gProcess.qzstdInst[i].res.produced);
 
@@ -1330,7 +1345,7 @@ size_t qatSequenceProducer(
         rc = ZSTD_SEQUENCE_PRODUCER_ERROR;
         goto error;
     }
-    QZSTD_LOG(2, "Produced %lu sequences\n", rc);
+    QZSTD_LOG(2, "Produced %zu sequences\n", rc);
 
 error:
     /* reset pData */

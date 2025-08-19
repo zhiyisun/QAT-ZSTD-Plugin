@@ -2,7 +2,7 @@
  *
  *   BSD LICENSE
  *
- *   Copyright(c) 2007-2023 Intel Corporation. All rights reserved.
+ *   Copyright(c) 2007-2025 Intel Corporation. All rights reserved.
  *   All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
     unsigned char *srcBuffer = NULL;
     unsigned char *dstBuffer = NULL;
     unsigned char *decompBuffer = NULL;
-    unsigned long bytesRead = 0;
+    ssize_t bytesRead = 0;
     size_t cSize = 0;
     size_t res = 0;
     ZSTD_CCtx *const zc = ZSTD_createCCtx();
@@ -86,7 +86,18 @@ int main(int argc, char *argv[])
 
     /* get input file size */
     inputFileSize = lseek(inputFile, 0, SEEK_END);
-    lseek(inputFile, 0, SEEK_SET);
+    if (inputFileSize < 0) {
+        printf("Cannot get file size\n");
+        close(inputFile);
+        return 1;
+    }
+
+    if (lseek(inputFile, 0, SEEK_SET) < 0) {
+        printf("Cannot seek to beginning of file\n");
+        close(inputFile);
+        return 1;
+    }
+
     dstBufferSize = ZSTD_compressBound(inputFileSize);
 
     srcBuffer = (unsigned char *)malloc(inputFileSize);
@@ -95,6 +106,24 @@ int main(int argc, char *argv[])
     assert(dstBuffer != NULL);
 
     bytesRead = read(inputFile, srcBuffer, inputFileSize);
+
+    /* Check for read errors */
+    if (bytesRead < 0) {
+        printf("Error reading file: %s\n", inputFileName);
+        close(inputFile);
+        free(srcBuffer);
+        free(dstBuffer);
+        return 1;
+    }
+
+    /* Check for empty file or no data read */
+    if (bytesRead == 0) {
+        printf("No data read from file: %s\n", inputFileName);
+        close(inputFile);
+        free(srcBuffer);
+        free(dstBuffer);
+        return 1;
+    }
 
     decompBuffer = malloc(bytesRead);
     assert(decompBuffer);
@@ -113,23 +142,30 @@ int main(int argc, char *argv[])
     }
 
     /* compress */
-    cSize = ZSTD_compress2(zc, dstBuffer, dstBufferSize, srcBuffer, bytesRead);
+    cSize = ZSTD_compress2(zc, dstBuffer, dstBufferSize, srcBuffer,
+                           (size_t)bytesRead);
     if ((int)cSize <= 0) {
         printf("Compress failed\n");
         goto exit;
     }
 
     /* decompress */
-    res = ZSTD_decompress(decompBuffer, inputFileSize, dstBuffer, cSize);
-    if (res != bytesRead) {
-        printf("Decompressed size in not equal to sourece size\n");
+    res = ZSTD_decompress(decompBuffer, (size_t)bytesRead, dstBuffer, cSize);
+    if (res != (size_t)bytesRead) {
+        printf("Decompressed size is not equal to source size\n");
         goto exit;
     }
 
     /* compare original buffer with decompressed output */
-    if (memcmp(decompBuffer, srcBuffer, bytesRead) == 0) {
+    /* Ensure bytesRead is valid before comparison */
+    if (bytesRead <= 0) {
+        printf("ERROR: Invalid bytes read value for comparison\n");
+        goto exit;
+    }
+
+    if (memcmp(decompBuffer, srcBuffer, (size_t)bytesRead) == 0) {
         printf("Compression and decompression were successful!\n");
-        printf("Source size: %lu\n", bytesRead);
+        printf("Source size: %ld\n", (long)bytesRead);
         printf("Compressed size: %lu\n", cSize);
     } else {
         printf("ERROR: input and validation buffers don't match!\n");

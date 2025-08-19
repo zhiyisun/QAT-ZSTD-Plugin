@@ -2,7 +2,7 @@
  *
  *   BSD LICENSE
  *
- *   Copyright(c) 2007-2023 Intel Corporation. All rights reserved.
+ *   Copyright(c) 2007-2025 Intel Corporation. All rights reserved.
  *   All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
@@ -61,7 +61,7 @@ typedef enum {
     QZSTD_OK = 0,       /* Success */
     QZSTD_STARTED = 1,  /* QAT device started */
     QZSTD_FAIL = -1,    /* Unspecified error */
-    QZSTD_UNSUPPORTED = -2 /* Unsupport */
+    QZSTD_UNSUPPORTED = -2 /* Unsupported */
 } QZSTD_Status_e;
 
 /** QZSTD_version:
