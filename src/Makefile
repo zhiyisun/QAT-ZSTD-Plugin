@@ -79,29 +79,45 @@ else
 	QATFLAGS += -O3
 endif
 
+# Extract version from header file using sed
+VERSION_MAJOR=$(shell sed -n 's/^#define QZSTD_VERSION_MAJOR[ \t]*\([0-9]*\).*/\1/p' qatseqprod.h)
+VERSION_MINOR=$(shell sed -n 's/^#define QZSTD_VERSION_MINOR[ \t]*\([0-9]*\).*/\1/p' qatseqprod.h)
+VERSION_PATCH=$(shell sed -n 's/^#define QZSTD_VERSION_RELEASE[ \t]*\([0-9]*\).*/\1/p' qatseqprod.h)
+
+VERSION=$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
+ifeq (,$(strip $(VERSION_MAJOR)$(VERSION_MINOR)$(VERSION_PATCH)))
+$(error Version extraction failed: check qatseqprod.h for QZSTD_VERSION macros)
+endif
+
 qatseqprod.o: qatseqprod.c
 	$(CC) -c $(CFLAGS) $(QATFLAGS) $(DEBUGFLAGS) $^ -o $@
 
 lib: qatseqprod.o
 	$(AR) rc libqatseqprod.a $^
-	$(CC) -shared $^ $(LDFLAGS) -o libqatseqprod.so
+	$(CC) -shared $^ $(LDFLAGS) -Wl,-soname,libqatseqprod.so.$(VERSION_MAJOR) -o libqatseqprod.so.$(VERSION)
+	ln -sf libqatseqprod.so.$(VERSION) libqatseqprod.so.$(VERSION_MAJOR)
+	ln -sf libqatseqprod.so.$(VERSION_MAJOR) libqatseqprod.so
 
 .PHONY: install
 install: lib
 	[ -e $(DESTDIR)$(LIBDIR) ] || $(INSTALL) -d -m 755 $(DESTDIR)$(LIBDIR)/
 	[ -e $(DESTDIR)$(INCLUDEDIR) ] || $(INSTALL) -d -m 755 $(DESTDIR)$(INCLUDEDIR)/
-	$(INSTALL_PROGRAM) libqatseqprod.so $(DESTDIR)$(LIBDIR)
+	$(INSTALL_PROGRAM) libqatseqprod.so.$(VERSION) $(DESTDIR)$(LIBDIR)
+	ln -sf libqatseqprod.so.$(VERSION) $(DESTDIR)$(LIBDIR)/libqatseqprod.so.$(VERSION_MAJOR)
+	ln -sf libqatseqprod.so.$(VERSION_MAJOR) $(DESTDIR)$(LIBDIR)/libqatseqprod.so
 	$(INSTALL_DATA) libqatseqprod.a $(DESTDIR)$(LIBDIR)
 	$(INSTALL_DATA) qatseqprod.h $(DESTDIR)$(INCLUDEDIR)
 	@echo qatseqprod library successfully installed
 
 .PHONY: uninstall
 uninstall:
-	$(RM) $(LIBDIR)/libqatseqprod.a
-	$(RM) $(LIBDIR)/libqatseqprod.so
-	$(RM) $(INCLUDEDIR)/qatseqprod.h
+	$(RM) $(DESTDIR)$(LIBDIR)/libqatseqprod.a
+	$(RM) $(DESTDIR)$(LIBDIR)/libqatseqprod.so.$(VERSION)
+	$(RM) $(DESTDIR)$(LIBDIR)/libqatseqprod.so.$(VERSION_MAJOR)
+	$(RM) $(DESTDIR)$(LIBDIR)/libqatseqprod.so
+	$(RM) $(DESTDIR)$(INCLUDEDIR)/qatseqprod.h
 	@echo qatseqprod library successfully uninstalled
 
 clean:
 	$(RM) *.o
-	$(RM) libqatseqprod.a libqatseqprod.so
+	$(RM) libqatseqprod.a libqatseqprod.so libqatseqprod.so.$(VERSION) libqatseqprod.so.$(VERSION_MAJOR)
