@@ -48,6 +48,7 @@ INSTALL_PROGRAM ?= $(INSTALL)
 INSTALL_DATA    ?= $(INSTALL) -m 644
 
 ifneq ($(ICP_ROOT), )
+	# out-of-tree
 	QATFLAGS = -I$(ICP_ROOT)/quickassist/include	\
 		   	   -I$(ICP_ROOT)/quickassist/include/dc	\
 		       -I$(ICP_ROOT)/quickassist/lookaside/access_layer/include \
@@ -55,7 +56,13 @@ ifneq ($(ICP_ROOT), )
 	LDFLAGS  = -Wl,-rpath,$(ICP_ROOT)/build -L$(ICP_ROOT)/build -lqat_s \
 			   -lusdm_drv_s -lnuma
 else
-	QATFLAGS = -DINTREE
+	# In-tree - look for headers in standard locations
+	QAT_INCLUDE_PATH := $(shell if [ -d /usr/local/include/qat ]; then echo /usr/local/include/qat; elif [ -d /usr/include/qat ]; then echo /usr/include/qat; fi)
+	ifneq ($(QAT_INCLUDE_PATH), )
+        QATFLAGS = -I$(QAT_INCLUDE_PATH)
+	else
+        $(error QAT headers not found in Standard path, Please install QATLib development package or set ICP_ROOT for out-of-tree driver)
+	endif
 	LDFLAGS  = -lqat -lusdm -lnuma
 endif
 
