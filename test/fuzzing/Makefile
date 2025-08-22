@@ -46,7 +46,13 @@ QATFLAGS = -I$(ICP_ROOT)/quickassist/include	\
            -I$(ICP_ROOT)/quickassist/lookaside/access_layer/include \
            -I$(ICP_ROOT)/quickassist/utilities/libusdm_drv
 else
-QATFLAGS = -DINTREE
+	# In-tree - look for headers in standard locations
+	QAT_INCLUDE_PATH := $(shell if [ -d /usr/local/include/qat ]; then echo /usr/local/include/qat; elif [ -d /usr/include/qat ]; then echo /usr/include/qat; fi)
+	ifneq ($(QAT_INCLUDE_PATH), )
+        QATFLAGS = -I$(QAT_INCLUDE_PATH)
+	else
+        $(error QAT headers not found in Standard path, Please install QAT development packages or set ICP_ROOT for out-of-tree driver)
+	endif
 endif
 
 ifdef ZSTDLIB

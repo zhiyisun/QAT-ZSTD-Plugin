@@ -60,7 +60,7 @@ LD_LIBRARY_PATH=%{buildroot}%{_libdir} ./test/test README.md
 
 %files
 %license LICENSE
-%{_libdir}/libqatseqprod.so.0
+%{_libdir}/libqatseqprod.so.1
 %{_libdir}/libqatseqprod.so.%{version}
 
 %files devel
