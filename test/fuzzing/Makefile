@@ -41,13 +41,12 @@ default: qatseqprodfuzzer.o
 all: qatseqprodfuzzer.o
 
 ifneq ($(ICP_ROOT), )
-	QATFLAGS = -I$(ICP_ROOT)/quickassist/include	\
-			-I$(ICP_ROOT)/quickassist/include/dc	\
-			-I$(ICP_ROOT)/quickassist/lookaside/access_layer/include \
-			-I$(ICP_ROOT)/quickassist/utilities/libusdm_drv
-	endif
+QATFLAGS = -I$(ICP_ROOT)/quickassist/include	\
+           -I$(ICP_ROOT)/quickassist/include/dc	\
+           -I$(ICP_ROOT)/quickassist/lookaside/access_layer/include \
+           -I$(ICP_ROOT)/quickassist/utilities/libusdm_drv
 else
-	QATFLAGS = -DINTREE
+QATFLAGS = -DINTREE
 endif
 
 ifdef ZSTDLIB
