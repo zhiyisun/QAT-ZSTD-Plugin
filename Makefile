@@ -68,7 +68,7 @@ clean:
 ########################
 rpm:
 	mkdir -p rpmbuild/BUILD rpmbuild/RPMS rpmbuild/SOURCES rpmbuild/SPECS rpmbuild/SRPMS
-	rpmbuild --undefine=_disable_source_fetch --define "_topdir $(PWD)/rpmbuild" -ba qat_zstd_plugin.spec
+	rpmbuild --undefine=_disable_source_fetch --define "_topdir $(PWD)/rpmbuild" -ba qat-zstd-plugin.spec
 
 rpmclean:
 	@rm -fr rpmbuild
