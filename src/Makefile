@@ -86,10 +86,10 @@ else
 	QATFLAGS += -O3
 endif
 
-# Extract version from header file using sed
-VERSION_MAJOR=$(shell sed -n 's/^#define QZSTD_VERSION_MAJOR[ \t]*\([0-9]*\).*/\1/p' qatseqprod.h)
-VERSION_MINOR=$(shell sed -n 's/^#define QZSTD_VERSION_MINOR[ \t]*\([0-9]*\).*/\1/p' qatseqprod.h)
-VERSION_PATCH=$(shell sed -n 's/^#define QZSTD_VERSION_RELEASE[ \t]*\([0-9]*\).*/\1/p' qatseqprod.h)
+# Extract version from header file
+VERSION_MAJOR := $(shell grep 'define QZSTD_VERSION_MAJOR' qatseqprod.h | awk '{print $$3}')
+VERSION_MINOR := $(shell grep 'define QZSTD_VERSION_MINOR' qatseqprod.h | awk '{print $$3}')
+VERSION_PATCH := $(shell grep 'define QZSTD_VERSION_RELEASE' qatseqprod.h | awk '{print $$3}')
 
 VERSION=$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
 ifeq (,$(strip $(VERSION_MAJOR)$(VERSION_MINOR)$(VERSION_PATCH)))
