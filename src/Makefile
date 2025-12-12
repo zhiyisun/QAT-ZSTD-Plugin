@@ -33,6 +33,9 @@
 #
 # #######################################################################
 
+# Enable/disable building QAT-dependent library
+BUILD_QAT ?= 1
+
 .PHONY: default
 default: lib
 
@@ -47,14 +50,15 @@ INSTALL ?= install
 INSTALL_PROGRAM ?= $(INSTALL)
 INSTALL_DATA    ?= $(INSTALL) -m 644
 
+ifeq ($(BUILD_QAT), 1)
 ifneq ($(ICP_ROOT), )
 	# out-of-tree
 	QATFLAGS = -I$(ICP_ROOT)/quickassist/include	\
 		   	   -I$(ICP_ROOT)/quickassist/include/dc	\
-		       -I$(ICP_ROOT)/quickassist/lookaside/access_layer/include \
-			   -I$(ICP_ROOT)/quickassist/utilities/libusdm_drv
+	       -I$(ICP_ROOT)/quickassist/lookaside/access_layer/include \
+		   -I$(ICP_ROOT)/quickassist/utilities/libusdm_drv
 	LDFLAGS  = -Wl,-rpath,$(ICP_ROOT)/build -L$(ICP_ROOT)/build -lqat_s \
-			   -lusdm_drv_s -lnuma
+		   -lusdm_drv_s -lnuma
 else
 	# In-tree - look for headers in standard locations
 	QAT_INCLUDE_PATH := $(shell if [ -d /usr/local/include/qat ]; then echo /usr/local/include/qat; elif [ -d /usr/include/qat ]; then echo /usr/include/qat; fi)
@@ -64,6 +68,7 @@ else
         $(error QAT headers not found in Standard path, Please install QATLib development package or set ICP_ROOT for out-of-tree driver)
 	endif
 	LDFLAGS  = -lqat -lusdm -lnuma
+endif
 endif
 
 ifdef ZSTDLIB
@@ -80,10 +85,12 @@ CFLAGS += -Wall -Werror -Wextra -Wcast-align -Wshadow -Wstrict-aliasing=1 \
 DEBUGLEVEL ?=0
 
 DEBUGFLAGS += -DDEBUGLEVEL=$(DEBUGLEVEL)
+ifeq ($(BUILD_QAT), 1)
 ifneq ($(DEBUGLEVEL), 0)
 	QATFLAGS += -g -O0
 else
 	QATFLAGS += -O3
+endif
 endif
 
 # Extract version from header file
@@ -96,6 +103,7 @@ ifeq (,$(strip $(VERSION_MAJOR)$(VERSION_MINOR)$(VERSION_PATCH)))
 $(error Version extraction failed: check qatseqprod.h for QZSTD_VERSION macros)
 endif
 
+ifeq ($(BUILD_QAT), 1)
 qatseqprod.o: qatseqprod.c
 	$(CC) -c $(CFLAGS) $(QATFLAGS) $(DEBUGFLAGS) $^ -o $@
 
@@ -124,6 +132,18 @@ uninstall:
 	$(RM) $(DESTDIR)$(LIBDIR)/libqatseqprod.so
 	$(RM) $(DESTDIR)$(INCLUDEDIR)/qatseqprod.h
 	@echo qatseqprod library successfully uninstalled
+else
+# When BUILD_QAT=0, provide no-op targets so the Makefile remains usable
+.PHONY: lib install uninstall
+lib:
+	@echo "BUILD_QAT=0: skipping QAT library build"
+
+install:
+	@echo "BUILD_QAT=0: nothing to install"
+
+uninstall:
+	@echo "BUILD_QAT=0: nothing to uninstall"
+endif
 
 clean:
 	$(RM) *.o

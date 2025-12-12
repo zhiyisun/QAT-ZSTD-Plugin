@@ -42,7 +42,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#ifdef BUILD_QAT
 #include "qatseqprod.h"
+#endif
 
 #ifndef ZSTD_STATIC_LINKING_ONLY
 #define ZSTD_STATIC_LINKING_ONLY
@@ -64,8 +66,10 @@ int main(int argc, char *argv[])
     size_t cSize = 0;
     size_t res = 0;
     ZSTD_CCtx *const zc = ZSTD_createCCtx();
+#ifdef BUILD_QAT
     QZSTD_startQatDevice();
     void *sequenceProducerState = QZSTD_createSeqProdState();
+#endif
 
     if (argc != 2) {
         printf("Usage: test <file>\n");
@@ -128,12 +132,14 @@ int main(int argc, char *argv[])
     decompBuffer = malloc(bytesRead);
     assert(decompBuffer);
 
+#ifdef BUILD_QAT
     /* register qatSequenceProducer */
     ZSTD_registerSequenceProducer(
         zc,
         sequenceProducerState,
         qatSequenceProducer
     );
+#endif
 
     res = ZSTD_CCtx_setParameter(zc, ZSTD_c_enableSeqProducerFallback, 1);
     if ((int)res <= 0) {
@@ -173,8 +179,10 @@ int main(int argc, char *argv[])
 
 exit:
     ZSTD_freeCCtx(zc);
+#ifdef BUILD_QAT
     QZSTD_freeSeqProdState(sequenceProducerState);
     QZSTD_stopQatDevice();
+#endif
     free(srcBuffer);
     free(dstBuffer);
     free(decompBuffer);

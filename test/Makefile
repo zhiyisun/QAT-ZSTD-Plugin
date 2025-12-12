@@ -32,14 +32,20 @@
 #   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # #######################################################################
-LIB     = ../src
+BUILD_QAT ?= 1
+ifeq ($(BUILD_QAT), 1)
+	LIB     = ../src
 
-LDFLAGS = $(LIB)/libqatseqprod.a -I$(LIB)
+	LDFLAGS = $(LIB)/libqatseqprod.a -I$(LIB)
 
-ifneq ($(ICP_ROOT), )
-	LDFLAGS += -lqat_s -lusdm_drv_s -lnuma -Wl,-rpath,$(ICP_ROOT)/build -L$(ICP_ROOT)/build
-else
-	LDFLAGS += -lqat -lusdm -lnuma
+	# Expose QAT-dependent code paths and CLI options (e.g. -m)
+	CFLAGS  += -DBUILD_QAT
+
+	ifneq ($(ICP_ROOT), )
+		LDFLAGS += -lqat_s -lusdm_drv_s -lnuma -Wl,-rpath,$(ICP_ROOT)/build -L$(ICP_ROOT)/build
+	else
+		LDFLAGS += -lqat -lusdm -lnuma
+	endif
 endif
 
 ifdef ZSTDLIB
@@ -54,6 +60,9 @@ default: test benchmark
 
 all: test benchmark
 
+# Optional arguments for running benchmark, e.g., ARGS="-m 1024"
+ARGS ?=
+
 check_zstdlib:
 	@echo checking zstd static libaray '$(ZSTDLIB)/libzstd.a'
 	@if [ ! -e $(ZSTDLIB)/libzstd.a ]; then \
@@ -62,14 +71,25 @@ check_zstdlib:
 	fi
 
 test: test.c check_zstdlib
+ifeq ($(BUILD_QAT), 1)
 	$(Q)$(MAKE) -C $(LIB)
+endif
 	$(CC) $< $(CFLAGS) $(LDFLAGS) -o $@
 
 benchmark: benchmark.c check_zstdlib
+ifeq ($(BUILD_QAT), 1)
 	$(Q)$(MAKE) -C $(LIB)
+endif
 	$(CC) $(CFLAGS) $< $(LDFLAGS) -o $@ -lpthread
 
 clean:
+ifeq ($(BUILD_QAT), 1)
 	$(Q)$(MAKE) -C $(LIB) $@
+endif
 	$(RM) test benchmark
 .PHONY: clean check_zstdlib
+
+# Run the compiled benchmark with optional ARGS (e.g., -m 1024)
+.PHONY: run-benchmark
+run-benchmark: benchmark
+	./benchmark $(ARGS)

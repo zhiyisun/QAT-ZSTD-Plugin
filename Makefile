@@ -36,32 +36,35 @@
 SRCDIR  = src
 TESTDIR = test
 
+# Enable/disable building QAT-dependent library
+BUILD_QAT ?= 1
+
 .PHONY: default
 default: lib
 
 .PHONY: lib
 lib:
-	$(Q)$(MAKE) -C $(SRCDIR) $@
+	$(Q)$(MAKE) -C $(SRCDIR) BUILD_QAT=$(BUILD_QAT) $@
 
 .PHONY: test
 test:
-	$(Q)$(MAKE) -C $(TESTDIR) $@
+	$(Q)$(MAKE) -C $(TESTDIR) BUILD_QAT=$(BUILD_QAT) $@
 
 .PHONY: benchmark
 benchmark:
-	$(Q)$(MAKE) -C $(TESTDIR) $@
+	$(Q)$(MAKE) -C $(TESTDIR) BUILD_QAT=$(BUILD_QAT) $@
 
 .PHONY: install
 install:
-	$(Q)$(MAKE) -C $(SRCDIR) $@
+	$(Q)$(MAKE) -C $(SRCDIR) BUILD_QAT=$(BUILD_QAT) $@
 
 .PHONY: uninstall
 uninstall:
-	$(Q)$(MAKE) -C $(SRCDIR) $@
+	$(Q)$(MAKE) -C $(SRCDIR) BUILD_QAT=$(BUILD_QAT) $@
 
 clean:
-	$(Q)$(MAKE) -C $(SRCDIR) $@
-	$(Q)$(MAKE) -C $(TESTDIR) $@
+	$(Q)$(MAKE) -C $(SRCDIR) BUILD_QAT=$(BUILD_QAT) $@
+	$(Q)$(MAKE) -C $(TESTDIR) BUILD_QAT=$(BUILD_QAT) $@
 
 ########################
 # RPM package building #
