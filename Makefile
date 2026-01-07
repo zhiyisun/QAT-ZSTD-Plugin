@@ -38,33 +38,46 @@ TESTDIR = test
 
 # Enable/disable building QAT-dependent library
 BUILD_QAT ?= 1
+BUILD_AOCL ?= 0
+AOCL_ROOT ?= ../../aocl-compression/install_path
+
+# Validate that BUILD_QAT and BUILD_AOCL are mutually exclusive, but skip for clean-like goals
+ifneq ($(filter clean rpmclean uninstall, $(MAKECMDGOALS)),)
+# skip validation during clean/uninstall
+else
+ifeq ($(BUILD_QAT), 1)
+ifeq ($(BUILD_AOCL), 1)
+$(error BUILD_QAT and BUILD_AOCL cannot both be enabled. Use one of: BUILD_QAT=1 BUILD_AOCL=0 (QAT), BUILD_QAT=0 BUILD_AOCL=0 (pure ZSTD), or BUILD_QAT=0 BUILD_AOCL=1 (AOCL))
+endif
+endif
+endif
 
 .PHONY: default
 default: lib
 
 .PHONY: lib
 lib:
-	$(Q)$(MAKE) -C $(SRCDIR) BUILD_QAT=$(BUILD_QAT) $@
+	$(Q)$(MAKE) -C $(SRCDIR) BUILD_QAT=$(BUILD_QAT) BUILD_AOCL=$(BUILD_AOCL) AOCL_ROOT=$(AOCL_ROOT) $@
 
 .PHONY: test
 test:
-	$(Q)$(MAKE) -C $(TESTDIR) BUILD_QAT=$(BUILD_QAT) $@
+	$(Q)$(MAKE) -C $(TESTDIR) BUILD_QAT=$(BUILD_QAT) BUILD_AOCL=$(BUILD_AOCL) AOCL_ROOT=$(AOCL_ROOT) $@
 
 .PHONY: benchmark
 benchmark:
-	$(Q)$(MAKE) -C $(TESTDIR) BUILD_QAT=$(BUILD_QAT) $@
+	$(Q)$(MAKE) -C $(TESTDIR) BUILD_QAT=$(BUILD_QAT) BUILD_AOCL=$(BUILD_AOCL) AOCL_ROOT=$(AOCL_ROOT) $@
 
 .PHONY: install
 install:
-	$(Q)$(MAKE) -C $(SRCDIR) BUILD_QAT=$(BUILD_QAT) $@
+	$(Q)$(MAKE) -C $(SRCDIR) BUILD_QAT=$(BUILD_QAT) BUILD_AOCL=$(BUILD_AOCL) AOCL_ROOT=$(AOCL_ROOT) $@
 
 .PHONY: uninstall
 uninstall:
-	$(Q)$(MAKE) -C $(SRCDIR) BUILD_QAT=$(BUILD_QAT) $@
+	$(Q)$(MAKE) -C $(SRCDIR) BUILD_QAT=$(BUILD_QAT) BUILD_AOCL=$(BUILD_AOCL) AOCL_ROOT=$(AOCL_ROOT) $@
 
 clean:
-	$(Q)$(MAKE) -C $(SRCDIR) BUILD_QAT=$(BUILD_QAT) $@
-	$(Q)$(MAKE) -C $(TESTDIR) BUILD_QAT=$(BUILD_QAT) $@
+	$(Q)$(MAKE) -C $(SRCDIR) BUILD_QAT=0 AOCL_ROOT=$(AOCL_ROOT) $@
+	$(Q)$(MAKE) -C $(TESTDIR) AOCL_ROOT=$(AOCL_ROOT) $@
 
 ########################
 # RPM package building #

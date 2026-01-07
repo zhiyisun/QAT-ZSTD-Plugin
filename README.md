@@ -127,6 +127,34 @@ Install the library:
 make install
 ```
 
+### Build Options (QAT / AOCL / Pure ZSTD)
+
+This project supports three mutually exclusive build modes for the test and benchmark tools:
+
+- QAT acceleration: `BUILD_QAT=1 BUILD_AOCL=0` (default)
+- Pure software ZSTD: `BUILD_QAT=0 BUILD_AOCL=0`
+- AOCL on AMD EPYC: `BUILD_QAT=0 BUILD_AOCL=1`
+
+Notes
+- `BUILD_QAT` and `BUILD_AOCL` cannot both be `1`. The Makefiles enforce this.
+- `AOCL_ROOT` defaults to `../../aocl-compression/install_path` and can be overridden if needed.
+- AOCL is typically provided as a static archive; when linked statically it will not appear in `ldd` output.
+- `make clean` does not require build flags; it removes artifacts regardless of mode.
+
+Examples
+```bash
+# QAT (default)
+make BUILD_QAT=1 BUILD_AOCL=0 test benchmark
+
+# Pure software ZSTD
+make BUILD_QAT=0 BUILD_AOCL=0 test benchmark
+
+# AOCL (AMD EPYC); AOCL_ROOT is optional if using the default
+make BUILD_QAT=0 BUILD_AOCL=1 test benchmark
+# or with explicit path
+make BUILD_QAT=0 BUILD_AOCL=1 AOCL_ROOT=/path/to/aocl-compression/install_path test benchmark
+```
+
 ### 3. Build and Run Test Program
 
 ```bash

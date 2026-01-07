@@ -35,6 +35,18 @@
 
 # Enable/disable building QAT-dependent library
 BUILD_QAT ?= 1
+BUILD_AOCL ?= 0
+
+# Validate that BUILD_QAT and BUILD_AOCL are mutually exclusive, but skip for clean-like goals
+ifneq ($(filter clean uninstall, $(MAKECMDGOALS)),)
+# skip validation during clean/uninstall
+else
+ifeq ($(BUILD_QAT), 1)
+ifeq ($(BUILD_AOCL), 1)
+$(error BUILD_QAT and BUILD_AOCL cannot both be enabled. Use one of: BUILD_QAT=1 BUILD_AOCL=0 (QAT), BUILD_QAT=0 BUILD_AOCL=0 (pure ZSTD), or BUILD_QAT=0 BUILD_AOCL=1 (AOCL))
+endif
+endif
+endif
 
 .PHONY: default
 default: lib
@@ -51,6 +63,10 @@ INSTALL_PROGRAM ?= $(INSTALL)
 INSTALL_DATA    ?= $(INSTALL) -m 644
 
 ifeq ($(BUILD_QAT), 1)
+# Skip QAT configuration entirely for clean/uninstall goals to avoid header checks
+ifneq ($(filter clean uninstall, $(MAKECMDGOALS)),)
+# no QATFLAGS/LDFLAGS needed when cleaning
+else
 ifneq ($(ICP_ROOT), )
 	# out-of-tree
 	QATFLAGS = -I$(ICP_ROOT)/quickassist/include	\
@@ -65,9 +81,11 @@ else
 	ifneq ($(QAT_INCLUDE_PATH), )
         QATFLAGS = -I$(QAT_INCLUDE_PATH)
 	else
-        $(error QAT headers not found in Standard path, Please install QATLib development package or set ICP_ROOT for out-of-tree driver)
+		# Avoid hard error during other targets like clean
+        $(warning QAT headers not found in standard path; set ICP_ROOT or install QATLib dev package)
 	endif
 	LDFLAGS  = -lqat -lusdm -lnuma
+endif
 endif
 endif
 
